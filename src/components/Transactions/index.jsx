@@ -1,89 +1,69 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { transactionsRequest, searchVisible as searchVisibleAction } from '../../actions';
 import Transaction from '../Transaction';
-import Loader from '../Loader';
-import './style.css';
+import PaginationControls from '../PaginationControls';
 
-class Transactions extends React.Component {
-  componentDidUpdate(prevProps) {
-    if (prevProps.activeId !== this.props.activeId) {
-      this.props.fetchTransactions(this.props.activeId);
-    }
+const paginate = (array, pageSize, pageNumber) => {
+  const arrayPageNumber = pageNumber - 1;
+  return array.slice(arrayPageNumber * pageSize, (arrayPageNumber + 1) * pageSize);
+};
+
+class Transactions extends React.PureComponent {
+  constructor() {
+    super();
+
+    this.handleNextPage = this.handleNextPage.bind(this);
+    this.handlePreviousPage = this.handlePreviousPage.bind(this);
+
+    this.state = {
+      page: 1,
+    };
   }
 
-  componentWillUnmount() {
-    if (this.props.searchVisible === true) {
-      this.props.searchVisibleToggle();
-    }
+  handlePreviousPage() {
+    const { page } = this.state;
+    if (page - 1 !== 0) this.setState({ page: page - 1 });
+  }
+
+  handleNextPage() {
+    const { pageSize } = this.props;
+    const nextPage = paginate(this.props.transactions, pageSize, this.state.page + 1);
+    if (nextPage.length !== 0) this.setState({ page: this.state.page + 1 });
   }
 
   render() {
-    const { fetching, transactions } = this.props;
+    const { transactions, pageSize, sortDesc } = this.props;
+    const { page } = this.state;
+    let sortedTransactions = transactions;
+
+    if (sortDesc) sortedTransactions = sortedTransactions.reverse();
 
     return (
-      <div className={`mzw-transactions ${fetching && 'mzw-transactions--loading'}`}>
-        {fetching ? <Loader /> : (
-          <ul className="mzw-transactions__list">
-            {transactions.map(transaction => (
-              <Transaction key={transaction.id} transaction={transaction} />
-            ))}
-          </ul>
-        )}
+      <div>
+        {paginate(sortedTransactions, pageSize, page).map(transaction => (
+          <Transaction key={transaction.id} {...transaction} />
+        ))}
+        <PaginationControls
+          page={page}
+          totalPageCount={Math.ceil(transactions.length / pageSize)}
+          handleNextPage={this.handleNextPage}
+          handlePreviousPage={this.handlePreviousPage}
+        />
       </div>
     );
   }
 }
 
+Transactions.defaultProps = {
+  transactions: [],
+  pageSize: 25,
+  sortDesc: true,
+};
+
 Transactions.propTypes = {
-  activeId: PropTypes.string.isRequired,
-  fetchTransactions: PropTypes.func.isRequired,
-  fetching: PropTypes.bool.isRequired,
-  transactions: PropTypes.arrayOf(PropTypes.object).isRequired,
-  searchVisible: PropTypes.bool.isRequired,
-  searchVisibleToggle: PropTypes.func.isRequired,
+  transactions: PropTypes.arrayOf(PropTypes.object),
+  pageSize: PropTypes.number,
+  sortDesc: PropTypes.bool,
 };
 
-const filterTransactions = (transactions, filter, visible) => {
-  if (filter === '' || visible === false) {
-    return transactions;
-  }
-
-  return transactions.filter(transaction => (
-    (transaction.merchant
-      ? transaction.merchant.name.toLowerCase().includes(filter.toLowerCase())
-      : false
-    ) ||
-    (transaction.merchant
-      ? transaction.merchant.address.formatted.toLowerCase().includes(filter.toLowerCase())
-      : false
-    ) ||
-    (transaction.merchant
-      ? transaction.merchant.category.toLowerCase().includes(filter.toLowerCase())
-      : false
-    ) ||
-    (transaction.notes
-      ? transaction.notes.toLowerCase().includes(filter.toLowerCase())
-      : false
-    )
-  ));
-};
-
-const mapStateToProps = state => ({
-  activeId: state.accounts.activeId,
-  transactions: filterTransactions(
-    state.transactions.list,
-    state.search.filter,
-    state.search.visible,
-  ),
-  searchVisible: state.search.visible,
-  fetching: state.transactions.fetching,
-});
-
-const mapDispatchToProps = dispatch => ({
-  fetchTransactions: accountId => dispatch(transactionsRequest(accountId)),
-  searchVisibleToggle: () => dispatch(searchVisibleAction()),
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(Transactions);
+export default Transactions;

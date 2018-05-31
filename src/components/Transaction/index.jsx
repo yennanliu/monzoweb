@@ -1,138 +1,61 @@
-import React, { Fragment } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { setActiveTransaction as setActiveTransactionAction } from '../../actions';
-import CategoryIcon from '../CategoryIcon';
 import {
-  getHumanCostFromInteger,
-  timeSince,
-  processTransactionTitle,
-  processTransactionAmount,
-} from '../../helpers';
+  monzoAmountToFormatted,
+  getMerchantLogoUrl,
+  getMerchantName,
+  getFormattedAmount,
+  getFormattedCreationDate,
+  getFormattedMerchantAddress,
+  getLatitudeLongitudeParameter,
+  getTagList,
+  getFormattedTimeSinceNow,
+} from '../../transactionFns';
 import './style.css';
 
-/* eslint-disable jsx-a11y/no-noninteractive-element-interactions,jsx-a11y/no-noninteractive-tabindex,max-len  */
-
 class Transaction extends React.PureComponent {
-  processTransactionLocalAmount(transaction) {
-    if (transaction.local_currency !== transaction.currency) {
-      return getHumanCostFromInteger(transaction.local_amount, transaction.local_currency);
-    }
-
-    return false;
-  }
-
-  processTransactionCategory(transaction) {
-    if (transaction.category) {
-      if (transaction.category === 'mondo' || transaction.category === 'monzo') {
-        return '';
-      }
-
-      return transaction.category;
-    }
-
-    return 'general';
-  }
-
-  processTransactionExtraInfo(transaction) {
-    if (transaction.metadata && transaction.metadata.faster_payment) {
-      return 'Bank transfer';
-    }
-
-    if (transaction.merchant) {
-      if (transaction.merchant.online) {
-        return 'Online';
-      }
-      if (transaction.merchant.address && transaction.merchant.address.city) {
-        return transaction.merchant.address.city;
-      }
-    }
-
-    return '';
-  }
-
   render() {
-    const { transaction, setActiveTransaction } = this.props;
-    const title = processTransactionTitle(transaction);
-    const amount = processTransactionAmount(transaction);
-    const extraInfo = this.processTransactionExtraInfo(transaction);
-    const created = timeSince(new Date(transaction.created));
-    const transactionLogoClassName = 'mzw-transaction__logo';
-    let iconOrLogo = <CategoryIcon className={transactionLogoClassName} />;
+    const {
+      amount,
+      category,
+      created,
+      description,
+      id,
+      merchant,
+    } = this.props;
 
-    if (transaction.merchant) {
-      if (transaction.merchant.logo) {
-        iconOrLogo = (
-          <img
-            className={transactionLogoClassName}
-            src={transaction.merchant.logo}
-            alt={`${transaction.merchant.name} logo`}
-          />
-        );
-      } else if (transaction.merchant.category) {
-        iconOrLogo = (
-          <CategoryIcon
-            className={transactionLogoClassName}
-            category={transaction.merchant.category}
-          />
-        );
-      }
-    } else if (transaction.counterparty && transaction.counterparty.name) {
-      iconOrLogo = (
-        <CategoryIcon
-          className={transactionLogoClassName}
-          character={transaction.counterparty.name.charAt(0)}
-        />
-      );
-    } else if (transaction.is_load) {
-      iconOrLogo = (
-        <CategoryIcon
-          className={transactionLogoClassName}
-          character="+"
-        />
-      );
-    }
     return (
-      <li
-        key={transaction.id}
-        onClick={() => setActiveTransaction(transaction)}
-        onKeyPress={() => setActiveTransaction(transaction)}
-        className="mzw-transaction"
-        tabIndex="0"
-      >
-        <div className="mzw-transaction__logo-container">{iconOrLogo}</div>
-        <div className="mzw-transaction__detail">
-          <div className={transaction.decline_reason ? 'mzw-transaction__detail-decline' : ''}>{title}</div>
-          <div className="mzw-transaction__info">
-            <span>{created}</span>
-            {extraInfo && (
-              <Fragment>
-                <span>&nbsp;&mdash;&nbsp;</span>
-                <span>{extraInfo}</span>
-              </Fragment>
-            )}
-          </div>
+      <div key={id} className="mzw__transaction">
+        <img className="mzw__transaction__logo" src={getMerchantLogoUrl(merchant)} alt={`${getMerchantName(merchant)} logo`} />
+        <div className="mzw__transaction__body">
+          <div>{getMerchantName(merchant)}</div>
+          <div>{getFormattedTimeSinceNow(created)}</div>
         </div>
-        <div className={`
-          mzw-transaction__amount
-          ${amount.includes('+') ? 'mzw-transaction__amount-positive' : ''}
-          ${transaction.decline_reason ? 'mzw-transaction__detail-decline' : ''}
-        `}
-        >
-          {amount}
-        </div>
-      </li>
+        <div>{getFormattedAmount(amount)}</div>
+        {/* <img width="40rem" src={getMerchantLogoUrl(merchant)} alt={`${getMerchantName(merchant)} logo`} />
+        <p><strong>{getMerchantName(merchant)}</strong></p>
+        <p><strong>{getFormattedAmount(amount)}</strong></p>
+        <p>{getFormattedCreationDate(created)}</p>
+        <p><a href={`http://maps.google.com/?ll=${getLatitudeLongitudeParameter(merchant)}`}>{getFormattedMerchantAddress(merchant)}</a></p>
+        <p>{category}</p>
+        <p>{getTagList(merchant).join(' ')}</p>
+        <p>{description}</p> */}
+      </div>
     );
   }
 }
 
-Transaction.propTypes = {
-  transaction: PropTypes.object.isRequired, // eslint-disable-line
-  setActiveTransaction: PropTypes.func.isRequired,
+Transaction.defaultProps = {
+  merchant: {},
 };
 
-const mapDispatchToProps = dispatch => ({
-  setActiveTransaction: transaction => dispatch(setActiveTransactionAction(transaction)),
-});
+Transaction.propTypes = {
+  amount: PropTypes.number.isRequired,
+  category: PropTypes.string.isRequired,
+  created: PropTypes.string.isRequired,
+  description: PropTypes.string.isRequired,
+  id: PropTypes.string.isRequired,
+  merchant: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+};
 
-export default connect(null, mapDispatchToProps)(Transaction);
+export default Transaction;
